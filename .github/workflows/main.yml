@@ -18,12 +18,12 @@ jobs:
         
       - name: "2. Maximizar Almacenamiento"
         run: |
-          echo "🧹 Limpiando herramientas innecesarias de GitHub para darte más espacio..."
+          echo "🧹 Limpiando herramientas innecesarias de GitHub para darte mas espacio..."
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/powershell /usr/share/swift
           sudo apt-get clean
           df -h /
 
-      - name: "3. Recuperar Carpeta SRV (Caché Comprimido ZSTD)"
+      - name: "3. Recuperar Carpeta SRV (Cache Comprimido ZSTD)"
         uses: actions/cache/restore@v4
         with:
           path: SRV
@@ -37,7 +37,6 @@ jobs:
           curl -fsSL https://tailscale.com/install.sh | sh
           sudo tailscale up --authkey=tskey-auth-kj81yXmYdu11CNTRL-mT422M3PiwZJCr1uofDiwZSa8mhNoSny --hostname=vps-dev --accept-dns=false
           
-          # Guardar IP
           TS_IP=$(sudo tailscale ip -4)
           echo $TS_IP > tailscale_ip.txt
 
@@ -53,26 +52,23 @@ jobs:
 
       - name: "6. Configurar Sistema de Consola y Subprocesos (P)"
         run: |
-          # 1. Comando 'consola': Te mete a ver todos tus procesos vivos
           echo '#!/bin/bash' | sudo tee /usr/bin/consola
           echo 'tmux attach-session -t VPS' | sudo tee -a /usr/bin/consola
           sudo chmod +x /usr/bin/consola
 
-          # 2. Comando 'P': Lanza procesos extra en nuevas ventanas invisibles
           echo '#!/bin/bash' | sudo tee /usr/bin/P
           echo 'tmux new-window -t VPS -n "App-${RANDOM:0:3}" "$*; read -p \"Presiona Enter para cerrar...\""' | sudo tee -a /usr/bin/P
           echo 'echo "✅ Proceso lanzado. Escribe '\''consola'\'' para verlo (Cambia de pestaña con Ctrl+b y luego las flechas)."' | sudo tee -a /usr/bin/P
           sudo chmod +x /usr/bin/P
 
-          # 3. Crear el start.sh si no existe
           mkdir -p SRV
           if [ ! -f "SRV/start.sh" ]; then
             cat << 'EOF' > SRV/start.sh
 #!/bin/bash
 echo "=== INICIO PRINCIPAL ==="
-echo "Este script corre automáticamente al encender."
+echo "Este script corre automaticamente al encender."
 echo "Puedes modificarlo desde VS Code."
-echo "Procesos activos manteniéndose vivos..."
+echo "Procesos activos manteniendose vivos..."
 sleep infinity
 EOF
             chmod +x SRV/start.sh
@@ -83,20 +79,15 @@ EOF
           CF_TOKEN: ${{ secrets.CF_TOKEN }}
         run: |
           echo "🚀 Arrancando entorno seguro..."
-          # Creamos la sesión principal y arrancamos VS Code Server
           tmux new-session -d -s VPS -n "VSCode" "PASSWORD=runnerpass code-server --bind-addr 0.0.0.0:8080 /home/runner/SRV"
           
-          # Abrimos la ventana con el Túnel a Cloudflare para acceso público
           if [ -n "$CF_TOKEN" ]; then
-            tmux new-window -t VPS -n "Túnel-Web" "cloudflared tunnel --no-autoupdate run --token $CF_TOKEN"
+            tmux new-window -t VPS -n "Tunel-Web" "cloudflared tunnel --no-autoupdate run --token $CF_TOKEN"
           else
-            tmux new-window -t VPS -n "Túnel-Web" "echo '❌ Falta el CF_TOKEN en GitHub Secrets. Añádelo para usar tu dominio vs.mcpe.qzz.io'; sleep infinity"
+            tmux new-window -t VPS -n "Tunel-Web" "echo '❌ Falta el CF_TOKEN en GitHub Secrets. Anadelo para usar tu dominio vs.mcpe.qzz.io'; sleep infinity"
           fi
           
-          # Abrimos la ventana con tu start.sh
           tmux new-window -t VPS -n "MainStart" "cd /home/runner/SRV && ./start.sh"
-          
-          # Seleccionamos la ventana de start.sh por defecto al abrir 'consola'
           tmux select-window -t VPS:2
 
       - name: "8. Configurar SSH Directo"
@@ -106,23 +97,23 @@ EOF
           sudo sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config || true
           sudo systemctl restart ssh
 
-      - name: "9. Ejecución Principal y Datos de Acceso"
+      - name: "9. Ejecucion Principal y Datos de Acceso"
         run: |
           TS_IP=$(cat tailscale_ip.txt)
           echo "--------------------------------------------------------------------"
           echo "🚀 ENTORNO SUPERGOD ACTIVO 🚀"
           echo "--------------------------------------------------------------------"
-          echo "🌐 VS CODE SERVER (ACCESO PÚBLICO MUNDIAL):"
+          echo "🌐 VS CODE SERVER (ACCESO PUBLICO MUNDIAL):"
           echo "   Ve a tu navegador sin VPN y entra a:"
           echo "   👉 http://vs.mcpe.qzz.io"
-          echo "   Contraseña: runnerpass"
+          echo "   Contrasena: runnerpass"
           echo "--------------------------------------------------------------------"
-          echo "💻 ACCESO SSH (Vía Tailscale):"
+          echo "💻 ACCESO SSH (Via Tailscale):"
           echo "   ssh runner@vps-dev"
-          echo "   Contraseña: runnerpass"
+          echo "   Contrasena: runnerpass"
           echo "--------------------------------------------------------------------"
-          echo "🛠️  COMANDOS MÁGICOS (Úsalos en SSH):"
-          echo "   👉 consola  -> Abre la terminal para ver start.sh y el Túnel web."
+          echo "🛠️  COMANDOS MAGICOS (Usalos en SSH):"
+          echo "   👉 consola  -> Abre la terminal para ver start.sh y el Tunel web."
           echo "                 (Para salir sin apagarlo presiona: Ctrl+B y luego la tecla D)."
           echo "   👉 P        -> Lanza cualquier bot. Ej: P python3 bot.py"
           echo "--------------------------------------------------------------------"
@@ -137,17 +128,17 @@ EOF
           sudo tailscale logout || true
           sleep 5
 
-      - name: "11. Guardar Caché (Tus archivos comprimidos en ZSTD)"
+      - name: "11. Guardar Cache (Tus archivos comprimidos en ZSTD)"
         if: always()
         uses: actions/cache/save@v4
         with:
           path: SRV
           key: srv-storage-${{ github.run_id }}
 
-      - name: "12. Bucle de Reinicio Automático"
+      - name: "12. Bucle de Reinicio Automatico"
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🚀 Invocando nueva máquina (Todo se mantendrá intacto)..."
-          gh workflow run " main.yml" --ref main || gh workflow run "VPN.yml" --ref main
+          echo "🚀 Invocando nueva maquina (Todo se mantendra intacto)..."
+          gh workflow run "main.yml" --ref main || gh workflow run "VPN.yml" --ref main
