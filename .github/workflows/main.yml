@@ -69,19 +69,27 @@ jobs:
         env:
           CF_TOKEN: ${{ secrets.CF_TOKEN }}
         run: |
-          echo "🚀 Arrancando entorno seguro..."
-          tmux new-session -d -s VPS -n "VSCode" "PASSWORD=runnerpass code-server --bind-addr 0.0.0.0:8080 /home/runner/SRV"
+          SRV_PATH="$(pwd)/SRV"
+          echo "🚀 Arrancando entorno seguro en la ruta: $SRV_PATH"
           
+          # 1. Iniciar Sesión de VS Code Server
+          tmux new-session -d -s VPS -n "VSCode" "PASSWORD=runnerpass code-server --bind-addr 0.0.0.0:8080 $SRV_PATH || sleep infinity"
+          
+          # 2. Iniciar Túnel
           if [ -n "$CF_TOKEN" ]; then
-            tmux new-window -t VPS -n "Tunel-Web" "cloudflared tunnel --no-autoupdate run --token $CF_TOKEN"
+            tmux new-window -t VPS -n "Tunel-Web" "cloudflared tunnel --no-autoupdate run --token $CF_TOKEN || sleep infinity"
           else
-            tmux new-window -t VPS -n "Tunel-Web" "echo '❌ Falta el CF_TOKEN en GitHub Secrets. Anadelo para usar tu dominio vs.mcpe.qzz.io'; sleep infinity"
+            tmux new-window -t VPS -n "Tunel-Web" "echo '❌ Falta el CF_TOKEN en GitHub Secrets.'; sleep infinity"
           fi
           
-          tmux new-window -t VPS -n "MainStart" "cd /home/runner/SRV && ./start.sh"
+          # 3. Iniciar start.sh
+          tmux new-window -t VPS -n "MainStart" "cd $SRV_PATH && ./start.sh || sleep infinity"
           
-          # Solución al error: Seleccionamos la ventana por su nombre exacto en lugar de usar un número (VPS:2)
-          tmux select-window -t VPS:"MainStart"
+          # Esperar un segundo para que Tmux termine de registrar las ventanas
+          sleep 2
+          
+          # Seleccionar la ventana principal
+          tmux select-window -t VPS:MainStart
 
       - name: "7. Configurar SSH Directo"
         run: |
@@ -98,14 +106,14 @@ jobs:
           echo "--------------------------------------------------------------------"
           echo "🌐 VS CODE SERVER (ACCESO PUBLICO MUNDIAL):"
           echo "   Ve a tu navegador sin VPN y entra a:"
-          echo "   👉 http://vs.mcpe.qzz.io"
+          echo "   👉 https://vs.mcpe.qzz.io"
           echo "   Contrasena: runnerpass"
           echo "--------------------------------------------------------------------"
           echo "💻 ACCESO SSH (Via Tailscale):"
           echo "   ssh runner@vps-dev"
           echo "   Contrasena: runnerpass"
           echo "--------------------------------------------------------------------"
-          echo "🛠️  COMANDOS MAGICOS (Usalos en SSH):"
+          echo "🛠️  COMANDOS MAGICOS (Usalos en SSH o terminal de VS Code):"
           echo "   👉 consola  -> Abre la terminal para ver start.sh y el Tunel web."
           echo "                 (Para salir sin apagarlo presiona: Ctrl+B y luego la tecla D)."
           echo "   👉 P        -> Lanza cualquier bot. Ej: P python3 bot.py"
