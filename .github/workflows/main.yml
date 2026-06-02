@@ -13,17 +13,10 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: "1. Preparar Entorno y Liberar Espacio (+30GB)"
+      - name: "1. Preparar Entorno"
         uses: actions/checkout@v4
-        
-      - name: "2. Maximizar Almacenamiento"
-        run: |
-          echo "🧹 Limpiando herramientas innecesarias de GitHub para darte mas espacio..."
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/powershell /usr/share/swift
-          sudo apt-get clean
-          df -h /
 
-      - name: "3. Recuperar Carpeta SRV (Cache Comprimido ZSTD)"
+      - name: "2. Recuperar Carpeta SRV (Cache Comprimido ZSTD)"
         uses: actions/cache/restore@v4
         with:
           path: SRV
@@ -31,7 +24,7 @@ jobs:
           restore-keys: |
             srv-storage-
 
-      - name: "4. Instalar y Configurar Tailscale (Solo para SSH seguro)"
+      - name: "3. Instalar y Configurar Tailscale (Solo para SSH seguro)"
         run: |
           echo "🚀 Instalando Tailscale..."
           curl -fsSL https://tailscale.com/install.sh | sh
@@ -40,7 +33,7 @@ jobs:
           TS_IP=$(sudo tailscale ip -4)
           echo $TS_IP > tailscale_ip.txt
 
-      - name: "5. Instalar VS Code Server, Tmux y Cloudflared"
+      - name: "4. Instalar VS Code Server, Tmux y Cloudflared"
         run: |
           echo "🚀 Instalando dependencias..."
           curl -fsSL https://code-server.dev/install.sh | sh
@@ -50,7 +43,7 @@ jobs:
           curl -L -o cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared.deb
 
-      - name: "6. Configurar Sistema de Consola y Subprocesos (P)"
+      - name: "5. Configurar Sistema de Consola y Subprocesos (P)"
         run: |
           echo '#!/bin/bash' | sudo tee /usr/bin/consola
           echo 'tmux attach-session -t VPS' | sudo tee -a /usr/bin/consola
@@ -72,7 +65,7 @@ jobs:
             chmod +x SRV/start.sh
           fi
 
-      - name: "7. Iniciar Servicios en Segundo Plano (Tmux)"
+      - name: "6. Iniciar Servicios en Segundo Plano (Tmux)"
         env:
           CF_TOKEN: ${{ secrets.CF_TOKEN }}
         run: |
@@ -86,16 +79,18 @@ jobs:
           fi
           
           tmux new-window -t VPS -n "MainStart" "cd /home/runner/SRV && ./start.sh"
-          tmux select-window -t VPS:2
+          
+          # Solución al error: Seleccionamos la ventana por su nombre exacto en lugar de usar un número (VPS:2)
+          tmux select-window -t VPS:"MainStart"
 
-      - name: "8. Configurar SSH Directo"
+      - name: "7. Configurar SSH Directo"
         run: |
           echo "runner:runnerpass" | sudo chpasswd
           sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config || true
           sudo sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config || true
           sudo systemctl restart ssh
 
-      - name: "9. Ejecucion Principal y Datos de Acceso"
+      - name: "8. Ejecucion Principal y Datos de Acceso"
         run: |
           TS_IP=$(cat tailscale_ip.txt)
           echo "--------------------------------------------------------------------"
@@ -119,21 +114,21 @@ jobs:
           echo "⏳ Servidor activo por 5h 45m..."
           sleep 20700
 
-      - name: "10. APAGADO SEGURO"
+      - name: "9. APAGADO SEGURO"
         if: always()
         run: |
           echo "🛑 INICIANDO APAGADO..."
           sudo tailscale logout || true
           sleep 5
 
-      - name: "11. Guardar Cache (Tus archivos comprimidos en ZSTD)"
+      - name: "10. Guardar Cache (Tus archivos comprimidos en ZSTD)"
         if: always()
         uses: actions/cache/save@v4
         with:
           path: SRV
           key: srv-storage-${{ github.run_id }}
 
-      - name: "12. Bucle de Reinicio Automatico"
+      - name: "11. Bucle de Reinicio Automatico"
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
