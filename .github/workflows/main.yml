@@ -63,14 +63,12 @@ jobs:
 
           mkdir -p SRV
           if [ ! -f "SRV/start.sh" ]; then
-            cat << 'EOF' > SRV/start.sh
-#!/bin/bash
-echo "=== INICIO PRINCIPAL ==="
-echo "Este script corre automaticamente al encender."
-echo "Puedes modificarlo desde VS Code."
-echo "Procesos activos manteniendose vivos..."
-sleep infinity
-EOF
+            echo '#!/bin/bash' > SRV/start.sh
+            echo 'echo "=== INICIO PRINCIPAL ==="' >> SRV/start.sh
+            echo 'echo "Este script corre automaticamente al encender."' >> SRV/start.sh
+            echo 'echo "Puedes modificarlo desde VS Code."' >> SRV/start.sh
+            echo 'echo "Procesos activos manteniendose vivos..."' >> SRV/start.sh
+            echo 'sleep infinity' >> SRV/start.sh
             chmod +x SRV/start.sh
           fi
 
